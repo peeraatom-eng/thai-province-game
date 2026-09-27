@@ -1,0 +1,59 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+  font-family: sans-serif;
+  background: #f5f7fa;
+}
+
+h1 {
+  margin: 5px 0;
+}
+
+#message {
+  min-height: 24px;
+}
+
+form {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 15px 0;
+}
+
+input {
+  width: 250px;
+  padding: 11px;
+  font-size: 16px;
+  border: 1px solid #aaa;
+  border-radius: 8px;
+}
+
+button {
+  padding: 11px 18px;
+  font-size: 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #222;
+  color: white;
+  cursor: pointer;
+}
+
+#giveUp {
+  background: #c62828;
+}
+
+#map {
+  width: 95%;
+  max-width: 900px;
+  height: 500px;
+  margin: 20px auto;
+  border: 2px solid #aaa;
+  border-radius: 12px;
+  background: #dceff7;
+  overflow: hidden;
+}
