@@ -15,7 +15,9 @@ let layer;
 let target;
 let guessed = new Set();
 let provinceLayers = new Map();
+let thailandBounds;
 
+// ทำความสะอาดชื่อจังหวัดก่อนนำไปเปรียบเทียบ
 function clean(text) {
   return String(text || "")
     .trim()
@@ -29,34 +31,36 @@ function name(feature) {
   return clean(feature.properties.pro_th);
 }
 
+// หาจุดกึ่งกลางจังหวัด
 function center(feature) {
   return L.geoJSON(feature).getBounds().getCenter();
 }
 
+// คำนวณระยะทางเป็นกิโลเมตร
 function distance(a, b) {
   return map.distance(a, b) / 1000;
 }
 
+// สีแต่ละระดับ แยกกันชัดเจน
 function color(km) {
   if (km < 50) return "#d32f2f";
-  if (km < 100) return "#ef5350";
-  if (km < 150) return "#ff7043";
-  if (km < 220) return "#ffb74d";
-  if (km < 300) return "#ffe082";
-  if (km < 400) return "#fff3c4";
-  if (km < 600) return "#fff8dc";
-  if (km < 800) return "#fffbea";
-  if (km < 1000) return "#fffdf2";
-  if (km < 1200) return "#fffdf7";
-  if (km < 1400) return "#fffdf9";
-  if (km < 1600) return "#fffdfa";
-  if (km < 1800) return "#fffdfb";
-  if (km < 2000) return "#fffefc";
-  return "#fffefd";
+  if (km < 100) return "#e53935";
+  if (km < 150) return "#f4511e";
+  if (km < 220) return "#f56c24";
+  if (km < 300) return "#fb8c00";
+  if (km < 400) return "#ffa000";
+  if (km < 500) return "#ffb300";
+  if (km < 650) return "#ffc107";
+  if (km < 800) return "#fdd835";
+  if (km < 1000) return "#f9e547";
+  if (km < 1200) return "#f5e85b";
+  return "#f0e66a";
 }
+
+// คืนสีทุกจังหวัดเป็นสีขาว
 function resetMap() {
-  provinceLayers.forEach(layer => {
-    layer.setStyle({
+  provinceLayers.forEach(provinceLayer => {
+    provinceLayer.setStyle({
       fillColor: "#ffffff",
       fillOpacity: 1,
       color: "#555",
@@ -65,10 +69,24 @@ function resetMap() {
   });
 }
 
+// ซูมกลับไปดูประเทศไทยทั้งหมด
+function zoomOutToThailand() {
+  if (thailandBounds) {
+    map.flyToBounds(thailandBounds, {
+      padding: [10, 10],
+      maxZoom: 6,
+      duration: 0.6
+    });
+  }
+}
+
+// เริ่มรอบใหม่
 function newRound() {
   target = data[Math.floor(Math.random() * data.length)];
+
   guessed.clear();
   resetMap();
+  zoomOutToThailand();
 
   input.value = "";
   input.focus();
@@ -76,6 +94,7 @@ function newRound() {
   message.textContent = "ทายจังหวัดที่คิดว่าเป็นคำตอบ";
 }
 
+// จบรอบแล้วเริ่มใหม่
 function finishRound(text) {
   message.textContent = text;
 
@@ -84,6 +103,18 @@ function finishRound(text) {
   }, 1800);
 }
 
+// ซูมไปยังจังหวัดที่เพิ่งทาย
+function zoomToProvince(provinceLayer) {
+  if (!provinceLayer) return;
+
+  map.flyToBounds(provinceLayer.getBounds(), {
+    padding: [100, 100],
+    maxZoom: 6,
+    duration: 0.8
+  });
+}
+
+// ตรวจคำตอบ
 function guess() {
   const text = clean(input.value);
   input.value = "";
@@ -125,9 +156,22 @@ function guess() {
       color: "#555",
       weight: 1
     });
+
+    // ซูมไปจังหวัดที่เพิ่งทาย
+    zoomToProvince(provinceLayer);
   }
 
   if (province === name(target)) {
+    // ถ้าทายถูก เปลี่ยนเป็นสีเขียว
+    if (provinceLayer) {
+      provinceLayer.setStyle({
+        fillColor: "#43a047",
+        fillOpacity: 1,
+        color: "#555",
+        weight: 1
+      });
+    }
+
     finishRound("🎉 ถูกต้อง!");
   } else {
     message.textContent = "ยังไม่ถูก ลองทายอีกจังหวัด";
@@ -136,7 +180,10 @@ function guess() {
   input.focus();
 }
 
+// ยอมแพ้และเปิดเผยจังหวัดคำตอบ
 function surrender() {
+  if (!target) return;
+
   const answer = name(target);
   const targetLayer = provinceLayers.get(answer);
 
@@ -147,11 +194,15 @@ function surrender() {
       color: "#555",
       weight: 1
     });
+
+    // ซูมไปจังหวัดคำตอบด้วย
+    zoomToProvince(targetLayer);
   }
 
   finishRound("ยอมแพ้! คำตอบคือ " + answer);
 }
 
+// กดปุ่มทายหรือ Enter
 form.addEventListener("submit", e => {
   e.preventDefault();
   guess();
@@ -159,13 +210,13 @@ form.addEventListener("submit", e => {
 
 giveUp.addEventListener("click", surrender);
 
+// โหลดข้อมูลแผนที่ประเทศไทย
 fetch(url)
   .then(r => {
     if (!r.ok) throw new Error();
     return r.json();
   })
   .then(json => {
-
     data = json.features.filter(f => name(f));
 
     if (data.length !== 77) {
@@ -188,7 +239,9 @@ fetch(url)
       );
     });
 
-    map.fitBounds(layer.getBounds(), {
+    thailandBounds = layer.getBounds();
+
+    map.fitBounds(thailandBounds, {
       padding: [10, 10]
     });
 
